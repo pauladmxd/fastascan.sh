@@ -1,5 +1,5 @@
 
-echo -e "\nWelcome to FastaScan by Paula Delgado\n"
+echo -e "\nWelcome to FastaScan\n"
 
 #Folder x where to search
 if [[ -n $1 ]]; then
