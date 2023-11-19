@@ -12,14 +12,13 @@ else
     folder="the current folder";
 fi
 
-echo -e "------------Summary folder report-----------\n"
+echo -e "---------------------------------------- FOLDER REPORT -----------------------------------------\n"
 
 echo "Your desired folder is" $folder
 
 #Number of lines
 
 if [[ -n $2 ]];then
-
 	nlines=$2
 else
 	nlines=0
@@ -27,8 +26,14 @@ fi
  
 #How many files are in the folder
 
-number_files=$(echo "$fasta_files" | wc -l)
-echo "### Number of fasta files:" $number_files
+if [ -z "$fasta_files" ]; then # without that condition, when there is no files it still counts at least 1 line and appears 1 file
+    number_files=0
+    echo -e "!!! There is no fasta or fa files in that folder, or doesn't exist, try again\n"
+	exit # we dont want to print the table without files
+else
+    number_files=$(echo "$fasta_files" | wc -l)
+    echo "### Number of fasta files:" $number_files
+fi
 
 #Unique IDs
 
@@ -42,79 +47,63 @@ done;
 echo "### Total Unique ID: $total_unique_ID" 
 
 #For each file do...
-echo -e "\n------------Single file report-----------\n"
+
+echo -e "\n---------------------------------------- SUMMARY TABLE -----------------------------------------\n"
+
+printf "%-40s %-15s %-15s %-15s %-15s\n" "FILE NAME" "CONTENT" "SYMLINK" "Nº SEQUENCES" "LENGTH"
+echo 
 
 for file in $fasta_files; do
-
-	file_name=$(basename "$file")
-
-	echo -e "### File name: $file_name\n"
-	
-#It the file empty or not
-	if [[ -s $file ]]; then 
-	
-#Extra points. Aminoacid or nucleotides
-		
-		if grep -v '>' "$file" | grep -qi [RDQEHILKMFPSWYV]; then
-		
-			echo "-> Content: Amino acid sequences"
-			
-		else
-		
-			echo "-> Content: Nucleotide sequences"
-		fi
-
-#Is it a Symlink or not
-		
-		if [[ -h $file ]]; then 
-		
-			echo "-> It is a symlink that links to" $(readlink $file)
-	
-		else
-		
-			echo "-> It is not a link"
-		
-		fi;
-		
+    file_name=$(basename "$file")
+    
+    if [[ -s $file ]]; then 
+        if grep -v '>' "$file" | grep -qi [RDQEHILKMFPSWYV]; then
+            type="Aminoacidic"
+        else
+            type="Nucleotidic"
+        fi
         
-#Number of sequences found in the file
-		
-		number_sequences=$(grep -c ">" $file)
-	
-		echo "-> Number of sequences: $number_sequences"
-		
-#Lenght of the sequences without gaps
-		
-		total_length_seq=$(awk '/^[^>]/ { gsub("-", ""); gsub("\n", ""); total += length($0) } END { print total }' $file) 
-
-		echo "-> Total sequences length: $total_length_seq"
-
-#Print according to the number of lines
-		
-		if [[ $nlines != 0 ]]; then
-			
-			lines=$(cat $file | wc -l)
-		
-			if [[ $lines -gt $((2 * $nlines)) ]]; then
-			echo -e "-> Showing the first and last $nlines lines: \n"
-			head -n $nlines $file
-			echo " ... ";
-			tail -n $nlines $file
-			
-			else 
-			echo -e "-> Showing the whole file: \n"
-			cat $file
-			
-			fi;
-			
-		fi;
-
+        if [[ -h $file ]]; then 
+            link="Yes"
+        else
+            link="No"
+        fi
+        
+        number_sequences=$(grep -c ">" $file)
+        total_length_seq=$(awk '/^[^>]/ { gsub("-", ""); gsub("\n", ""); total += length($0) } END { print total }' $file) 
 	else
+	link="-"
+	total_length_seq="-"
+	number_sequences="-"
+	type="Empty"
 	
-		echo "-> The file is empty"
-	
-	fi;
-	
-	echo -e "\n" # empty line to separate
-	
+    fi
+    
+    printf "%-40s %-15s %-15s %-15s %-15s\n" "$file_name" "$type" "$link" "$number_sequences" "$total_length_seq"
+    
+    echo # empty line to separate
+
 done;
+
+# Printing based on nlines
+
+if [[ $nlines != 0 ]]; then
+    echo -e "\n------------------------------- PRINTING ACCORDING TO Nº OF LINES ----------------------------------\n"
+    for file in $fasta_files; do
+        if [[ -s $file ]]; then
+            echo -e "### File name: $(basename "$file")"
+            lines=$(wc -l < $file)
+            if [[ $lines -gt $((2 * $nlines)) ]]; then
+                echo -e "-> Showing the first and last $nlines lines: "
+                head -n $nlines $file
+                echo " ... "
+                tail -n $nlines $file
+            else 
+                echo -e "-> Showing the whole file: "
+                cat $file
+            fi
+            echo  # empty line to separate
+        fi
+    done
+fi
+
