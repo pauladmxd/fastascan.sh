@@ -1,1 +1,1 @@
-# fastascan.sh
+# fastascan
